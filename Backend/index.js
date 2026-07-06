@@ -1,11 +1,18 @@
 const express = require("express");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
+const {getEncoding} = require("js-tiktoken");
+
 const { userModel } = require("./model");
 const { authMiddleware } = require("./middleware");
+const {modelPricing} = require("./config/modelPricing");
+const {promptCleaner} = require("./services/promptCleaner");
 
 const app = express();
 app.use(express.json());
+
+//Initialize the tokenizer used by GPT-3.5 and GPT-4 models
+const encoder = getEncoding("cl100k_base");
 
 app.post("/signup", async (req, res) => {
     try {
