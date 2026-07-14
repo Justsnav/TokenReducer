@@ -3,10 +3,10 @@ const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
 const {getEncoding} = require("js-tiktoken");
 
-const { userModel } = require("./model");
+const { userModel, userDataModel } = require("./model");
 const { authMiddleware } = require("./middleware");
-const {modelPricing} = require("./config/modelPricing");
-const {promptCleaner} = require("./services/promptCleaner");
+const {pricingModels} = require("./config/modelPricing");
+const {promptCleaner, cleanPrompt} = require("./services/promptCleaner");
 
 const app = express();
 app.use(express.json());
@@ -105,6 +105,56 @@ app.post("/signin", async (req, res) => {
         });
     }
 });
+
+app.post("/minimize", authMiddleware, async(req,res)=>{
+    try{
+        const prompt = req.body.prompt;
+        const model = req.body.model;
+        const selectmodel = model || "gpt-4o";
+
+        if(!prompt){
+            return res.status(400).json({
+                message:"Prompt text is required."
+            })
+        }
+        //count original prompt tokens
+        const originalToken = encoder.encode(prompt).length;
+        //compress prompt text
+        const optimizedPrompt = cleanPrompt(prompt);
+
+        //count optimized prompt token
+        const optimizedTokens = encoder.encode(optimizedPrompt).length;
+        const tokenSaved = originalToken - optimizedTokens;
+
+        //Token Price Calculator Logic 
+        const pricePerMillion = pricingModels[selectmodel] || 2.50;
+        const originalCost = (originalToken / 1000000) * pricePerMillion;
+        const optimizedCost = (optimizedTokens / 1000000) * pricePerMillion;
+        const estimatedCostSaved = originalCost - optimizedCost;
+
+        //save entry log to database tracking user history
+        await userDataModel.create({
+            userId: req.userId,
+            description: `Model: ${selectmodel} | Token Saved: ${tokenSaved} | Saved: $${estimatedCostSaved.toFixed(6)}`
+        })
+        return res.json({
+            enhancedOrReducedPrompt: optimizedPrompt, // Direct link to your image layout!
+            tokensUsed: originalToken,               // Top-right box
+            newRefinedPromptToken: optimizedTokens,   // Bottom-right box
+            metrics: {
+                modelUsed: selectmodel,
+                tokensSaved: tokenSaved,
+                savingsPercentage: originalToken > 0 ? `${Math.round((tokenSaved / originalToken) * 100)}%` : "0%",
+                moneySavedUSD: estimatedCostSaved.toFixed(6) 
+            }
+        });
+
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ message: "Internal server error processing prompt rules" });
+    }
+    
+})
 
 app.listen(3000, () => {
     console.log("Server running on port 3000");

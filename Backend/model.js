@@ -1,5 +1,5 @@
 const mongoose = require("mongoose");
-mongoose.connect("");
+mongoose.connect("mongodb+srv://abhinavsingh882005_db_user:vGuCtkdOLHzKf8ld@todo.6ag6bdr.mongodb.net/TokenReducer");
 const userSchema = new mongoose.Schema({
     username: String,
     password: String,

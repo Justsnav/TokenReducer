@@ -22,4 +22,4 @@ const pricingModels = {
     "gemini-2.5-flash-lite": 0.10 // Maximum budget optimization tier
 };
 
-module.exports = modelPricing
+module.exports = { pricingModels }
